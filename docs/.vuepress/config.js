@@ -1,8 +1,11 @@
 module.exports = {
   title: '潜心摸鱼，戒骄戒躁',
   description: '....',
+  head: [
+    ['link', { rel: 'icon', href: '/favicon.ico' }]
+  ],
   themeConfig: {
-    repo: 'vuejs/vuepress',
+    repo: 'Xumengxiang/inner-peace',
     repoLabel: 'Github',
     lastUpdated: '最后修改时间', // string | boolean
     nav: [
@@ -41,27 +44,15 @@ module.exports = {
       },
     ],
     sidebar: {
-      "/articles/js": [
+      "/articles/react": [
         {
-          title: "1. 框架指南",
-          collapsable: true,
-          path: "framework",
-          // children: [
-          //   { title: "内置功能", path: "/handbook/" },
-          //   { title: "展望未来", path: "/handbook/" },
-          // ],
-        },
-        // ["/handbook/framework", "1. 框架指南"],
-        {
-          title: "2. 功能特性",
-          collapsable: true,
+          collapsable: false,
           children: [
-            { title: "内置功能", path: "/handbook/" },
-            { title: "展望未来", path: "/handbook/" },
+            { title: "React全家桶", path: "/articles/react" },
           ],
         },
       ],
     },
     sidebarDepth: 3,
-  }
+  },
 }
