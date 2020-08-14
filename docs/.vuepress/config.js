@@ -2,6 +2,8 @@ module.exports = {
   title: '潜心摸鱼，戒骄戒躁',
   description: '....',
   themeConfig: {
+    repo: 'vuejs/vuepress',
+    repoLabel: 'Github',
     lastUpdated: '最后修改时间', // string | boolean
     nav: [
       {
