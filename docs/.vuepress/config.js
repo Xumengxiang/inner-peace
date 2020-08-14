@@ -2,7 +2,7 @@ module.exports = {
   title: '潜心摸鱼，戒骄戒躁',
   description: '....',
   themeConfig: {
-    lastUpdated: 'Last Updated', // string | boolean
+    lastUpdated: '最后修改时间', // string | boolean
     nav: [
       {
         text: "前端知识体系",
