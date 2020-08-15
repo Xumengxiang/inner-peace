@@ -48,7 +48,7 @@ module.exports = {
         {
           collapsable: false,
           children: [
-            { title: "React全家桶", path: "/articles/react" },
+            { title: "一篇就够了：React全家桶", path: "/articles/react" },
           ],
         },
       ],

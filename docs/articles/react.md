@@ -1,21 +1,217 @@
-# React全家桶
+# 一篇就够了：`React`全家桶
 
-## React
+![一篇就够了：React 全家桶](/react.jpg)
 
-### JSX
+## `React`
 
-### 函数组件与 class 组件
+### `Virtual Dom`
 
-#### HOC
+#### 什么是`Virtual Dom`
 
-### state 和生命周期
+`Virtual Dom`是对`Dom`的抽象，本质上是一个`JavaScript`对象，这个对象是对`Dom`的轻量级描述。
 
-#### 组件间通信
+#### 为什么需要`Virtual Dom`
 
-### Hooks
+既然我们已经有了`Dom`，为什么还需要`Virtual Dom`呢？主要原因有以下三点：
 
-### Fiber
+* **性能需要**：`Dom`操作相对较慢，并且频繁操作`Dom`容易造成浏览器的回流和重绘，严重影响性能。`Virtual Dom`可以尽可能的减少`Dom`操作的次数。
+* **现代前端框架的基本要求**：现代前端框架的一个基本要求就是无需手动操作`Dom`，原因有二：一、无法保证性能；二、省略`Dom`操作可以大大提高开发效率。
+* **跨平台**：`Virtual Dom`的最初目的就是解决跨平台的问题，比如`Node.js`本身没有`Dom`，如果想要实现`SSR`，一种可行的方式就是借助`Virtual Dom`，因为`Virtual Dom`本身只是一个`JavaScript`对象。
 
-## React-Redux
+#### 关键知识点（以`snabbdom.js`为例）
 
-## React-Router
+##### 根据`Dom`节点创建`VNode`
+
+`VNode`是`Dom`节点的抽象，那么我们很容易定义它的形式。
+
+```js
+{
+  type: String, // String，DOM 节点的类型，如 'div'/'span'
+  data: Object,  // Object，包括 props，style等等 DOM 节点的各种属性
+  children: Array // Array，子节点（子 vnode）
+}
+```
+
+我们来看一下`snabbdom.js`中是怎么定义`VNode`的：
+
+```ts
+export interface VNode {
+  sel: string | undefined; // VNode的选择器，nodeName+id+class的组合
+  data: VNodeData | undefined; // 存放VNodeData的地方，具体见下面的VNodeData定义
+  children: Array<VNode | string> | undefined; // vnode的子vnode的地方
+  elm: Node | undefined; // 存储vnode对应的真实的dom的地方
+  text: string | undefined; // vnode的text文本，和children只能二选一
+  key: Key | undefined; // vnode的key值，主要用于后续vnode的diff过程
+}
+
+export interface VNodeData {
+  props?: Props; // vnode上传递的其他属性
+  attrs?: Attrs; // vnode上的其他dom属性，可以通过setAttribute来设置或删除的。
+  class?: Classes; // vnode上的class的属性集合
+  style?: VNodeStyle; // vnode上的style属性集合
+  dataset?: Dataset; // vnode挂载的数据集合
+  on?: On;  // 监听的事件集合
+  hero?: Hero;
+  attachData?: AttachData; // 额外附加的数据
+  hook?: Hooks; // vnode的钩子函数集合，主要用于在不同阶段调用不通过的钩子函数
+  key?: Key;
+  ns?: string; // for SVGs 命名空间，主要用于SVG
+  fn?: () => VNode; // for thunks
+  args?: Array<any>; // for thunks
+  [key: string]: any; // for any other 3rd party module
+}
+```
+
+`snabbdom.js`中不仅仅存在`VNode`和`VNodeData`两个数据模型，还有一个生成`VNode`的工具方法`vnode`:
+
+```ts
+// 参数是sel，data，children，text，elm，返回值是一个VNode的对象
+export function vnode(sel: string | undefined,
+                      data: any | undefined,
+                      children: Array<VNode | string> | undefined,
+                      text: string | undefined,
+                      elm: Element | Text | undefined): VNode {
+  let key = data === undefined ? undefined : data.key;
+  return {sel: sel, data: data, children: children, text: text, elm: elm, key: key};
+}
+```
+
+有了`VNode`和生成`VNode`的函数，接下来我们看看如何将真实的`Dom`节点转化为`VNode`:
+
+```ts
+// 参数是要求一个真实的dom对象
+export function toVNode(node: Node, domApi?: DOMAPI): VNode {
+  // 这边定义了一个变量叫api，主要是一些用于dom操作的api接口。
+  const api: DOMAPI = domApi !== undefined ? domApi : htmlDomApi;
+  // 定义了text的变量
+  let text: string;
+  // 如果node是一个element类型的dom对象就进行如下的操作
+  if (api.isElement(node)) {
+    // 获得node的id，变成#id 
+    const id = node.id ? '#' + node.id : '';
+   // 获得class，变成.class1.class2这样的形式
+    const cn = node.getAttribute('class');
+    const c = cn ? '.' + cn.split(' ').join('.') : '';
+   // sel 变成tagName+id+class的形式，比如<div id=id class=class></div>的sel的值就变成了div#id.class
+    const sel = api.tagName(node).toLowerCase() + id + c;
+   // 定义一系列后续需要使用的attrs，children等对象。
+    const attrs: any = {};
+    const children: Array<VNode> = [];
+    let name: string;
+    let i: number, n: number;
+    // 获得元素里所有的attrs
+    const elmAttrs = node.attributes;
+   // 获得元素中所有子节点,这边不用children
+    const elmChildren = node.childNodes;
+    for (i = 0, n = elmAttrs.length; i < n; i++) {
+      name = elmAttrs[i].nodeName;
+      if (name !== 'id' && name !== 'class') {
+        // 把非id和class的属性值放到attrs中 
+        attrs[name] = elmAttrs[i].nodeValue;
+      }
+    }
+    for (i = 0, n = elmChildren.length; i < n; i++) {
+      // 通过递归的方式把子节点翻译成vnode放入children数组中
+      children.push(toVNode(elmChildren[i], domApi));
+    }
+   // 生成完整的vnode并返回
+    return vnode(sel, {attrs}, children, undefined, node);
+  } else if (api.isText(node)) {
+   // 如果node是一个textContent类型的就返回文本的vnode
+    text = api.getTextContent(node) as string;
+    return vnode(undefined, undefined, undefined, text, node);
+  } else if (api.isComment(node)) {
+   // 如果node是一个comment类型的就返回sel是"!"的文本的vnode
+    text = api.getTextContent(node) as string;
+    return vnode('!', {}, [], text, node as any);
+  } else {
+    // 如果什么都不是就返回一个空的vnode 
+    return vnode('', {}, [], undefined, node as any);
+  }
+}
+```
+
+##### 根据`VNode`生成真实的`Dom`节点
+
+我们已经有了各种方法来生成一个`VNode`，包括从普通`js`对象生成，从真实的`Dom`来生成。但是我们怎么从`VNode`生成真实的`Dom`呢？接下来让我们来看看`snabbdom.js`中最重要的主代码`snabbdom.ts`。
+
+利用`VNode`生成真实`Dom`在`snabbdom`中主要是通过`createElm`方法来实现，该方法放在`snabbdom.ts`中。
+
+```ts
+  //根据VNode创建element
+  function createElm(vnode: VNode, insertedVnodeQueue: VNodeQueue): Node {
+    let i: any, data = vnode.data;
+    if (data !== undefined) {
+      //如果VNodeData存在且hooks里有init函数,则执行init函数,然后重新赋值VNodeData
+      if (isDef(i = data.hook) && isDef(i = i.init)) {
+        i(vnode);
+        data = vnode.data;
+      }
+    }
+    // 子虚拟dom,
+    let children = vnode.children, sel = vnode.sel;
+    // 当sel == "!"的时候表示这个vnode就是一个comment
+    if (sel === '!') {
+      if (isUndef(vnode.text)) {
+        vnode.text = '';
+      }
+      vnode.elm = api.createComment(vnode.text as string);
+    } else if (sel !== undefined) {
+      // Parse selector 这么一段就是为了从sel中获得tag值,id值,class值
+      const hashIdx = sel.indexOf('#');
+      const dotIdx = sel.indexOf('.', hashIdx);
+      const hash = hashIdx > 0 ? hashIdx : sel.length;
+      const dot = dotIdx > 0 ? dotIdx : sel.length;
+      const tag = hashIdx !== -1 || dotIdx !== -1 ? sel.slice(0, Math.min(hash, dot)) : sel;
+      const elm = vnode.elm = isDef(data) && isDef(i = (data as VNodeData).ns) ? api.createElementNS(i, tag)
+                                                                               : api.createElement(tag);
+      // 设置元素的id
+      if (hash < dot) elm.setAttribute('id', sel.slice(hash + 1, dot));
+      // 设置元素的class
+      if (dotIdx > 0) elm.setAttribute('class', sel.slice(dot + 1).replace(/\./g, ' '));
+      // 调用create钩子
+      for (i = 0; i < cbs.create.length; ++i) cbs.create[i](emptyNode, vnode);
+      if (is.array(children)) {
+        for (i = 0; i < children.length; ++i) {
+          const ch = children[i];
+          if (ch != null) {
+            //深度遍历
+            api.appendChild(elm, createElm(ch as VNode, insertedVnodeQueue));
+          }
+        }
+      } else if (is.primitive(vnode.text)) {
+        api.appendChild(elm, api.createTextNode(vnode.text));
+      }
+      i = (vnode.data as VNodeData).hook; // Reuse variable
+      if (isDef(i)) {
+        if (i.create) i.create(emptyNode, vnode);
+        //当insert的hook存在,就在插入Vnode的队列中加入该vnode
+        if (i.insert) insertedVnodeQueue.push(vnode);
+      }
+    } else {
+      // 其他的情况就当vnode是一个简单的TextNode
+      vnode.elm = api.createTextNode(vnode.text as string);
+    }
+    return vnode.elm;
+  }
+```
+
+##### `diff`算法
+
+### `Proxy`和`defineProperty`对比
+
+### `React`最新的生命周期
+
+### `setState`是同步操作还是异步操作
+
+### `React`如何实现组件间通信
+
+### 如何进行组件/逻辑复用
+
+### `React Fiber`架构解析
+
+### `React Hooks`最佳实践
+
+## `Redux`
+
+## `React-Router`
