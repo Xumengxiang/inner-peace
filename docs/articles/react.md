@@ -198,6 +198,144 @@ export function toVNode(node: Node, domApi?: DOMAPI): VNode {
 
 ##### `diff`算法
 
+我们已经把`complie`的阶段弄的差不多了，现在只剩下，怎么比较`oldVnode`与`newVnode`两个`vnode`，并实现`DOM`树更新？也就是我们前面提到的`diff`方法和`patch`过程，在`snabbdom.ts`，`diff`和`patch`都写在一起，我们继续往下看。
+
+```ts
+  // 只要这两个虚拟元素的sel(选择器)和key一样就是same的
+  function sameVnode(vnode1: VNode, vnode2: VNode): boolean {
+    return vnode1.key === vnode2.key && vnode1.sel === vnode2.sel;
+  }
+  // patch过程
+  function patchVnode(oldVnode: VNode, vnode: VNode, insertedVnodeQueue: VNodeQueue) {
+    let i: any, hook: any;
+    // 调用全局hook里定义的事件的地方。
+    if (isDef(i = vnode.data) && isDef(hook = i.hook) && isDef(i = hook.prepatch)) {
+      i(oldVnode, vnode);
+    }
+    // 因为 vnode 和 oldVnode 是相同的 vnode，所以我们可以复用 oldVnode.elm。
+    const elm = vnode.elm = (oldVnode.elm as Node);
+    let oldCh = oldVnode.children;
+    let ch = vnode.children;
+    if (oldVnode === vnode) return;
+    if (vnode.data !== undefined) {
+      for (i = 0; i < cbs.update.length; ++i) cbs.update[i](oldVnode, vnode);
+      i = vnode.data.hook;
+      if (isDef(i) && isDef(i = i.update)) i(oldVnode, vnode);
+    }
+    // 如果 vnode.text 是 undefined
+    if (isUndef(vnode.text)) {
+      if (isDef(oldCh) && isDef(ch)) {
+        // 核心逻辑（最复杂的地方）：怎么比较新旧 children 并更新，对应上面
+        // 的数组比较
+        if (oldCh !== ch) updateChildren(elm, oldCh as Array<VNode>, ch as Array<VNode>, insertedVnodeQueue);
+        // 添加新 children
+      } else if (isDef(ch)) {
+        // 首先删除原来的 text
+        if (isDef(oldVnode.text)) api.setTextContent(elm, '');
+        // 然后添加新 dom（对 ch 中每个 vnode 递归创建 dom 并插入到 elm）
+        addVnodes(elm, null, ch as Array<VNode>, 0, (ch as Array<VNode>).length - 1, insertedVnodeQueue);
+      } else if (isDef(oldCh)) {
+        // 相反地，如果原来有 children 而现在没有，那么我们要删除 children。
+        removeVnodes(elm, oldCh as Array<VNode>, 0, (oldCh as Array<VNode>).length - 1);
+      } else if (isDef(oldVnode.text)) {
+        // 最后，如果 oldVnode 有 text，删除。
+        api.setTextContent(elm, '');
+      }
+      // 否则 （vnode 有 text），只要 text 不等，更新 dom 的 text。
+    } else if (oldVnode.text !== vnode.text) {
+      api.setTextContent(elm, vnode.text as string);
+    }
+    if (isDef(hook) && isDef(i = hook.postpatch)) {
+      i(oldVnode, vnode);
+    }
+  }
+
+  // diff算法的重点
+  function updateChildren(parentElm: Node,
+                          oldCh: Array<VNode>,
+                          newCh: Array<VNode>,
+                          insertedVnodeQueue: VNodeQueue) {
+    // parentElm:Node
+    // oldCh: Array<VNode>
+    // newCh: Array<VNode>
+    // insertdVnodeQuenen: VNodeQuenen
+    // 和patchVnode形成了精巧递归
+    let oldStartIdx = 0, newStartIdx = 0;
+    let oldEndIdx = oldCh.length - 1;
+    let oldStartVnode = oldCh[0];
+    let oldEndVnode = oldCh[oldEndIdx];
+    let newEndIdx = newCh.length - 1;
+    let newStartVnode = newCh[0];
+    let newEndVnode = newCh[newEndIdx];
+    let oldKeyToIdx: any;
+    let idxInOld: number;
+    let elmToMove: VNode;
+    let before: any;
+
+    // 当oldCh和newCh其中还有一个没有比较完的话，就执行下的函数
+    while (oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx) {
+      if (oldStartVnode == null) {
+        oldStartVnode = oldCh[++oldStartIdx]; // Vnode might have been moved left
+      } else if (oldEndVnode == null) {
+        oldEndVnode = oldCh[--oldEndIdx];
+      } else if (newStartVnode == null) {
+        newStartVnode = newCh[++newStartIdx];
+      } else if (newEndVnode == null) {
+        newEndVnode = newCh[--newEndIdx];
+      } else if (sameVnode(oldStartVnode, newStartVnode)) {
+        patchVnode(oldStartVnode, newStartVnode, insertedVnodeQueue);
+        oldStartVnode = oldCh[++oldStartIdx];
+        newStartVnode = newCh[++newStartIdx];
+      } else if (sameVnode(oldEndVnode, newEndVnode)) {
+        patchVnode(oldEndVnode, newEndVnode, insertedVnodeQueue);
+        oldEndVnode = oldCh[--oldEndIdx];
+        newEndVnode = newCh[--newEndIdx];
+      } else if (sameVnode(oldStartVnode, newEndVnode)) { // Vnode moved right
+        // 把获得更新后的 (oldStartVnode/newEndVnode) 的 dom 右移，移动到
+        // oldEndVnode 对应的 dom 的右边。为什么这么右移？
+        // （1）oldStartVnode 和 newEndVnode 相同，显然是 vnode 右移了。
+        // （2）若 while 循环刚开始，那移到 oldEndVnode.elm 右边就是最右边，是合理的；
+        // （3）若循环不是刚开始，因为比较过程是两头向中间，那么两头的 dom 的位置已经是
+        //     合理的了，移动到 oldEndVnode.elm 右边是正确的位置；
+        // （4）记住，oldVnode 和 vnode 是相同的才 patch，且 oldVnode 自己对应的 dom
+        //     总是已经存在的，vnode 的 dom 是不存在的，直接复用 oldVnode 对应的 dom。
+        patchVnode(oldStartVnode, newEndVnode, insertedVnodeQueue);
+        api.insertBefore(parentElm, oldStartVnode.elm as Node, api.nextSibling(oldEndVnode.elm as Node));
+        oldStartVnode = oldCh[++oldStartIdx];
+        newEndVnode = newCh[--newEndIdx];
+      } else if (sameVnode(oldEndVnode, newStartVnode)) { // Vnode moved left
+        //更新新旧vnode的值，然后vnode左移
+        patchVnode(oldEndVnode, newStartVnode, insertedVnodeQueue);
+        api.insertBefore(parentElm, oldEndVnode.elm as Node, oldStartVnode.elm as Node);
+        oldEndVnode = oldCh[--oldEndIdx];
+        newStartVnode = newCh[++newStartIdx];
+      } else {
+        if (oldKeyToIdx === undefined) {
+          oldKeyToIdx = createKeyToOldIdx(oldCh, oldStartIdx, oldEndIdx);
+        }
+        idxInOld = oldKeyToIdx[newStartVnode.key as string];
+        // 新的children中的startVnode元素没有在旧children中找到
+        if (isUndef(idxInOld)) { // New element
+          api.insertBefore(parentElm, createElm(newStartVnode, insertedVnodeQueue), oldStartVnode.elm as Node);
+          newStartVnode = newCh[++newStartIdx];
+        } else {
+          // 新的children中的startNode元素在旧children中找到元素
+          elmToMove = oldCh[idxInOld];
+          // 如果sel不相等则必须重新创建一个新的ele
+          if (elmToMove.sel !== newStartVnode.sel) {
+            api.insertBefore(parentElm, createElm(newStartVnode, insertedVnodeQueue), oldStartVnode.elm as Node);
+          } else {
+            // 更新操作
+            patchVnode(elmToMove, newStartVnode, insertedVnodeQueue);
+            oldCh[idxInOld] = undefined as any;
+            api.insertBefore(parentElm, (elmToMove.elm as Node), oldStartVnode.elm as Node);
+          }
+          newStartVnode = newCh[++newStartIdx];
+        }
+      }
+    }
+```
+
 ### `Proxy`和`defineProperty`对比
 
 ### `React`最新的生命周期
