@@ -336,9 +336,103 @@ export function toVNode(node: Node, domApi?: DOMAPI): VNode {
     }
 ```
 
-### `Proxy`和`defineProperty`对比
-
 ### `React`最新的生命周期
+
+`React` 从 `v16.3` 开始，对生命周期进行了渐进式的调整。废弃了一些生命周期方法和添加了一些新的生命周期方法。
+
+#### 原生命周期方法
+
+![原生命周期](/old-funcs.jpg)
+
+#### 新生命周期方法
+
+![新生命周期](/new-funcs.jpg)
+
+##### 废弃的生命周期方法
+
+* `componentWillMount`
+* `componentWillReceiveProps`
+* `componentWillUpdate`
+
+##### 新增的生命周期方法
+
+* `getDerivedStateFromProps`
+* `getSnapshotBeforeUpdate`
+
+##### 挂载
+
+**`constructor()`**
+  
+```jsx
+constructor(props)
+```
+
+`React` 组件在挂载前，会调用它的构造函数，在构造函数内部必须执行一次`super(props)`。不能再`constructor`内部调用`this.setState`。 通常用于：
+
+* 通过给this.state初始化内部状态
+* 为事件处理函数绑定this
+
+**`static getDerivedStateFromProps()`**
+
+```jsx
+static getDerivedStateFromProps(newProps,prevState)
+```
+
+是一个静态方法，父组件传入的`newProps`和当前组件的`prevState`进行比较，判断时候需要更新`state`，返回值对象用作更新`state`，如果不需要则返回`null`。在`render()`方法之前调用，并且在初始挂载和后续更新时调用。
+
+**`render()`**
+
+`render()`是组件中唯一必须实现的方法。`render()` 函数应该是纯函数。不能够调用`setState`。
+
+**`componentDidMount()`**
+
+组件加载完成，能够获取真是的 `DOM` 在此阶段可以`ajax`请求和绑定事件，在此阶段绑定了时间要在`componentWillUnmount()`取消。在此阶段可以调用`setState`，触发`render`渲染，但会影响性能。
+
+##### 更新
+
+**`static getDerivedStateFromProps()`**
+
+和挂载阶段一致。
+
+**`shouldComponentUpate()`**
+
+```jsx
+shouldComponentUpdate(props,state)
+```
+
+在已挂载的组件，当`props`或者`state`发生变化时，会在渲染前调用。根据父组件的 `props` 和当前的 `state` 进行对比，返回`true`/`false`。决定是否触发后续的生命周期函数。
+
+**`render()`**
+
+和挂载阶段一致。
+
+**`getSnapshotBeforeUpdate()`**
+
+```jsx
+getSnapshotBeforeUpdate(prevProps,prevState)
+```
+
+在真实的 `DOM` 更新前调用。可获取一些有用的信息然后作为参数传递给`componentDidUpdate()`。`prevProps`表示更新前的`props`,`prevState`表示更新前的`state`。
+
+在`render()`之后`componentDidUpdate()`之前调用。此方法的返回值`(snaphot)`可作为`componentDidUpdate()`的第三个参数使用。如不需要返回值则直接返回`null`。
+
+**`componentDidUpdate`**
+
+```jsx
+componentDidUpdate(prevProps, prevState, snapshot)
+```
+
+该方法会在更新完成后立即调用。首次渲染不会执行此方法。当组件更新后，可以在此处对 `DOM` 进行操作。可以在此阶段使用`setState`，触发`render()`但必须包裹在一个条件语句里，以避免死循环。
+
+##### 卸载
+
+**`componentWillUnmount`**
+
+```jsx
+componentWillUnmount()
+```
+
+会在组件卸载和销毁之前直接调用。此方法主要用来执行一些清理工作，例如：定时器，清除事件绑定，取消网络请求。
 
 ### `setState`是同步操作还是异步操作
 
