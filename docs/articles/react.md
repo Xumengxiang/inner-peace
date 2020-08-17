@@ -342,11 +342,11 @@ export function toVNode(node: Node, domApi?: DOMAPI): VNode {
 
 #### 原生命周期方法
 
-![原生命周期](/old-funcs.jpg)
+![原·生命周期](/old-funcs.jpg)
 
 #### 新生命周期方法
 
-![新生命周期](/new-funcs.jpg)
+![新·生命周期](/new-funcs.jpg)
 
 ##### 废弃的生命周期方法
 
