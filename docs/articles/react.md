@@ -340,11 +340,11 @@ export function toVNode(node: Node, domApi?: DOMAPI): VNode {
 
 `React` 从 `v16.3` 开始，对生命周期进行了渐进式的调整。废弃了一些生命周期方法和添加了一些新的生命周期方法。
 
-#### 原生命周期方法
+#### 原·生命周期方法
 
 ![原·生命周期](/old-funcs.jpg)
 
-#### 新生命周期方法
+#### 新·生命周期方法
 
 ![新·生命周期](/new-funcs.jpg)
 
