@@ -498,6 +498,370 @@ componentWillUnmount()
 
 ### `React Fiber`架构解析
 
+#### `React v15`存在的问题
+
+`React`在进行组件渲染时，从`setState`开始到渲染完成整个过程是同步的（“一气呵成”）。如果需要渲染的组件比较庞大，`js`执行会占据主线程时间较长，会导致页面响应度变差，使得`React`在动画、手势等应用中效果比较差。
+
+##### 卡顿原因
+
+`Stack reconciler`的工作流程很像函数的调用过程。父组件里调子组件，可以类比为函数的递归（这也是为什么被称为`stack reconciler`的原因）。在`setState`后，`React`会立即开始`reconciliation`过程，从父节点（`Virtual DOM`）开始遍历，以找出不同。将所有的`Virtual DOM`遍历完成后，`reconciler`才能给出当前需要修改真实`DOM`的信息，并传递给`renderer`，进行渲染，然后屏幕上才会显示此次更新内容。对于特别庞大的`vDOM`树来说，`reconciliation`过程会很长(`x00ms`)，在这期间，主线程是被`js`占用的，因此任何交互、布局、渲染都会停止，给用户的感觉就是页面被卡住了。
+
+#### `React v16`的解决思路
+
+为了解决这个问题，`React`团队经过两年的工作，重写了`React`中核心算法——`reconciliation`。并在`v16`版本中发布了这个新的特性。为了区别之前和之后的`reconciler`，通常将之前的`reconciler`称为`stack reconciler`，重写后的称为`fiber reconciler`，简称为`Fiber`。
+
+#### `Fiber`的原理
+
+##### Scheduler
+
+`scheduling`(调度)是`fiber reconciliation`的一个过程，主要决定应该在何时做什么。在`stack reconciler`中，`reconciliation`是“一气呵成”，对于函数来说，这没什么问题，因为我们只想要函数的运行结果，但对于UI来说还需要考虑以下问题：
+
+* 并不是所有的`state`更新都需要立即显示出来，比如屏幕之外的部分的更新
+* 并不是所有的更新优先级都是一样的，比如用户输入的响应优先级要比通过请求填充内容的响应优先级更高
+* 理想情况下，对于某些高优先级的操作，应该是可以打断低优先级的操作执行的，比如用户输入时，页面的某个评论还在`reconciliation`，应该优先响应用户输入
+
+所以理想状况下`reconciliation`的过程应该是像下图所示一样，每次只做一个很小的任务，做完后能够“喘口气儿”，回到主线程看下有没有什么更高优先级的任务需要处理，如果有则先处理更高优先级的任务，没有则继续执行(`cooperative scheduling` 合作式调度)。
+
+![Scheduler](/scheduler.jpg)
+
+##### 任务拆分
+
+**`Stack reconciler`**：代码中创建（或更新）一些元素，`react`会根据这些元素创建（或更新）`Virtual DOM`，然后`react`根据更新前后`virtual DOM`的区别，去修改真正的`DOM`。注意，在`stack reconciler`下，`DOM`的更新是同步的，也就是说，在`virtual DOM`的比对过程中，发现一个`instance`有更新，会立即执行`DOM`操作。
+
+**`Fiber reconciler`**：操作是可以分成很多小部分，并且可以被中断的，所以同步操作`DOM`可能会导致`fiber-tree`与实际`DOM`的不同步。对于每个节点来说，其不光存储了对应元素的基本信息，还要保存一些用于任务调度的信息。因此，`fiber`仅仅是一个对象，表征`reconciliation`阶段所能拆分的最小工作单元，和上图中的`react instance`一一对应。通过`stateNode`属性管理`Instance`自身的特性。通过`child`和`sibling`表征当前工作单元的下一个工作单元，`return`表示处理完成后返回结果所要合并的目标，通常指向父节点。**整个结构是一个链表树**。每个工作单元（`fiber`）执行完成后，都会查看是否还继续拥有主线程时间片，如果有继续下一个，如果没有则先处理其他高优先级事务，等主线程空闲下来继续执行。
+
 ## `Redux`
 
+`Redux`的几个核心概念：
+
+* **`Store`**：保存数据的地方，你可以把它看成一个容器，整个应用只能有一个`Store`。
+* **`State`**：`Store`对象包含所有数据，如果想得到某个时点的数据，就要对`Store`生成快照，这种时点的数据集合，就叫做`State`。
+* **`Action`**：`State`的变化，会导致`View`的变化。但是，用户接触不到`State`，只能接触到`View`。所以，`State`的变化必须是`View`导致的。`Action`就是`View`发出的通知，表示`State`应该要发生变化了。
+* **`Action Creator`**：`View`要发送多少种消息，就会有多少种`Action`。如果都手写，会很麻烦，所以我们定义一个函数来生成`Action`，这个函数就叫`Action Creator`。
+* **`Reducer`**：`Store`收到`Action`以后，必须给出一个新的`State`，这样`View`才会发生变化。这种`State`的计算过程就叫做Reducer。Reducer是一个函数，它接受`Action`和当前`State`作为参数，返回一个新的`State`。
+* **`dispatch`**：是`View`发出`Action`的唯一方法。
+
+### `Redux`的工作流程
+
+![redux-flow](/redux-flow.png)
+
+1. 用户（通过`View`）发出`Action`，发出方式就用到了`dispatch`方法。
+2. `Store`自动调用`Reducer`，并且传入两个参数：当前`State`和收到的`Action`，`Reducer`会返回新的`State`
+3. `State`一旦有变化，`Store`就会调用监听函数，来更新`View`。
+
+### `React-Redux`
+
+#### 入口文件
+
+* `Provider`的作用是从最外部封装了整个应用，并向`connect`模块传递`store`
+
+```jsx
+// 文件路径：@/index.js
+import React from 'react';
+import { render } from 'react-dom';
+import { browserHistory, Router } from 'react-router';
+import { Provider } from 'react-redux';
+import { syncHistoryWithStore } from 'react-router-redux';
+import store from '@/store';
+import routes from '@/routes';
+
+const history = syncHistoryWithStore(browserHistory, store);
+
+render(
+  <Provider store={store}>
+    <Router history={history} routes={routes} />
+  </Provider>,
+  document.getElementById('root'),
+);
+```
+
+#### `store`文件
+
+* 通过`createStore`创建store
+* 通过`applyMiddleware`接入`redux-thunk`中间件
+
+```jsx
+// 文件路径：@/store
+import { createStore, applyMiddleware } from 'redux';
+import thunk from 'redux-thunk';
+import rootReducer from '@/reducers';
+
+export default createStore(rootReducer, applyMiddleware(thunk));
+```
+
+#### `reducer`文件
+
+* 通过`combineReducers`将各个子模块的reducer合并
+
+```jsx
+// 文件路径：@/reducers
+import { routerReducer as routing } from 'react-router-redux';
+import { combineReducers } from 'redux';
+import home from './home';
+import user from './user';
+import base from './base';
+
+export default combineReducers({
+  routing,
+  home,
+  user,
+  base,
+});
+```
+
+#### `action`文件
+
+```jsx
+// 文件路径：@/actions/user
+export const getUserInfo = user => (dispatch) => {
+  dispatch({ type: 'GET_USER_INFO', ...user });
+};
+```
+
+#### 组件
+
+* 通过`connect`连接`React`组件和`Redux`，实现以下功能：
+  * 获取`state`: `connect`通过`context`获取`Provider`中的`store`，通过`store.getState()`获取整个`store tree`上所有`state`
+  * 包装原组件: 将`state`和`action`通过`props`的方式传入到原组件内部`wrapWithConnect`返回一个`ReactComponent`对象`Connect`，`Connect`重新`render`外部传入的原组件`WrappedComponent`，并把`connect`中传入的`mapStateToProps`, `mapDispatchToProps`与组件上原有的`props`合并后，通过属性的方式传给`WrappedComponent`
+  * 监听`store tree`变化: `connect`缓存了`store tree`中`state`的状态,通过当前`state`状态和变更前`state`状态进行比较,从而确定是否调用`this.setState()`方法触发`Connect`及其子组件的重新渲染
+
+```jsx
+import React, { Component } from 'react';
+import { connect } from 'react-redux';
+import { getUserInfo } from '@/actions/user';
+
+class Index extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { user: null };
+    props.getUserInfo({ userId: '123', token:'123' });
+  }
+
+  render() {
+    return (<div>组件</div>);
+  }
+}
+
+const mapStateToProps = state => ({
+  user: state.user,
+});
+const mapDispatchToProps = {
+  getUserInfo,
+};
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps,
+)(Index);
+```
+
+### `React-Redux`中如何进行异步操作
+
+* 直接在`componentDidmount`进行请求，无需借助`redux`
+* 借助`redux`中间件
+
+### `Redux`中间件比较
+
+#### `redux-thunk`
+
+**优点：**
+
+* 体积小: redux-thunk的实现方式很简单,只有不到20行代码
+* 使用简单: redux-thunk没有引入像redux-saga或者redux-observable额外的范式,上手简单
+
+**缺陷：**
+
+* 样板代码过多: 与redux本身一样,通常一个请求需要大量的代码,而且很多都是重复性质的
+* 耦合严重: 异步操作与redux的action偶合在一起,不方便管理
+* 功能孱弱: 有一些实际开发中常用的功能需要自己进行封装
+
+#### `redux-saga`
+
+**优点：**
+
+* 异步解耦: 异步操作被被转移到单独`saga.js`中，不再是掺杂在`action.js`或`component.js`中
+* `action`摆脱`thunk function: dispatch`的参数，依然是一个纯粹的`action (FSA)`，而不是充满 “黑魔法”`thunk function`
+* 异常处理: 受益于 `generator function` 的 `saga`实现，代码异常/请求失败 都可以直接通过 try/catch 语法直接捕获处理
+* 功能强大: `redux-saga`提供了大量的`Saga`辅助函数和`Effect`创建器供开发者使用，开发者无须封装或者简单封装即可使用
+* 灵活: `redux-saga`可以将多个`Saga`可以串行/并行组合起来，形成一个非常实用的异步`flow`
+* 易测试: 提供了各种`case`的测试方案，包括`mock task`，分支覆盖等等
+
+**缺陷：**
+
+* 额外的学习成本: `redux-saga`不仅在使用难以理解的`generator function`，而且有数十个`API`,学习成本远超`redux-thunk`，最重要的是你的额外学习成本是只服务于这个库的，与`redux-observable`不同，`redux-observable`虽然也有额外学习成本但是背后是和`rxjs`一整套思想
+* 体积庞大: 体积略大,代码近2000行，min版25KB左右
+* 功能过剩: 实际上并发控制等功能很难用到,但是我们依然需要引入这些代码
+* `ts`支持不友好: `yield`无法返回TS类型
+
+#### `redux-observable`
+
+**优点：**
+
+* 功能最强: 由于背靠`rxjs`这个强大的响应式编程的库,借助`rxjs`的操作符,你可以几乎做任何你能想到的异步处理
+* 背靠`rxjs`: 由于有`rxjs`的加持,如果你已经学习了`rxjs`，`redux-observable`的学习成本并不高,而且随着`rxjs`的升级redux-observable也会变得更强大
+
+**缺陷：**
+
+* 学习成本奇高: 如果你不会`rxjs`，则需要额外学习两个复杂的库
+* 社区一般: `redux-observable`的下载量只有`redux-saga`的1/5，社区也不够活跃，在复杂异步流中间件这个层面`redux-saga`仍处于领导地位
+
 ## `React-Router`
+
+前端路由是现代SPA应用必备的功能，每个现代前端框架都有对应的实现，例如`vue-router`、`react-router`。我们在这里不去探究`vue-router`或者`react-router`的实现，因为不管是哪种路由无外乎用兼容性更好的`hash`实现或者是`H5 History`实现，与框架匹配只需要做相应的封装即可。
+
+### `Hash`路由
+
+```jsx
+class Routers {
+  constructor() {
+    // 储存hash与callback键值对
+    this.routes = {};
+    // 当前hash
+    this.currentUrl = '';
+    // 记录出现过的hash
+    this.history = [];
+    // 作为指针,默认指向this.history的末尾,根据后退前进指向history中不同的hash
+    this.currentIndex = this.history.length - 1;
+    this.refresh = this.refresh.bind(this);
+    this.backOff = this.backOff.bind(this);
+    // 默认不是后退操作
+    this.isBack = false;
+    window.addEventListener('load', this.refresh, false);
+    window.addEventListener('hashchange', this.refresh, false);
+  }
+
+  route(path, callback) {
+    this.routes[path] = callback || function() {};
+  }
+
+  refresh() {
+    this.currentUrl = location.hash.slice(1) || '/';
+    if (!this.isBack) {
+      // 如果不是后退操作,且当前指针小于数组总长度,直接截取指针之前的部分储存下来
+      // 此操作来避免当点击后退按钮之后,再进行正常跳转,指针会停留在原地,而数组添加新hash路由
+      // 避免再次造成指针的不匹配,我们直接截取指针之前的数组
+      // 此操作同时与浏览器自带后退功能的行为保持一致
+      if (this.currentIndex < this.history.length - 1)
+        this.history = this.history.slice(0, this.currentIndex + 1);
+      this.history.push(this.currentUrl);
+      this.currentIndex++;
+    }
+    this.routes[this.currentUrl]();
+    console.log('指针:', this.currentIndex, 'history:', this.history);
+    this.isBack = false;
+  }
+  // 后退功能
+  backOff() {
+    // 后退操作设置为true
+    this.isBack = true;
+    this.currentIndex <= 0
+      ? (this.currentIndex = 0)
+      : (this.currentIndex = this.currentIndex - 1);
+    location.hash = `#${this.history[this.currentIndex]}`;
+    this.routes[this.history[this.currentIndex]]();
+  }
+}
+```
+
+### `History`路由
+
+```jsx
+class Routers {
+  constructor() {
+    this.routes = {};
+    // 在初始化时监听popstate事件
+    this._bindPopState();
+  }
+  // 初始化路由
+  init(path) {
+    history.replaceState({path: path}, null, path);
+    this.routes[path] && this.routes[path]();
+  }
+  // 将路径和对应回调函数加入hashMap储存
+  route(path, callback) {
+    this.routes[path] = callback || function() {};
+  }
+
+  // 触发路由对应回调
+  go(path) {
+    history.pushState({path: path}, null, path);
+    this.routes[path] && this.routes[path]();
+  }
+  // 监听popstate事件
+  _bindPopState() {
+    window.addEventListener('popstate', e => {
+      const path = e.state && e.state.path;
+      this.routes[path] && this.routes[path]();
+    });
+  }
+}
+```
+
+### 路由切换动画
+
+我们可以借助`React`的官方动画库`react-transition-group`来实现路由切换动画。
+
+示例如下：
+
+```jsx
+import React from 'react'
+import ReactDOM from 'react-dom'
+import { BrowserRouter as Router, Route, Link, NavLink } from 'react-router-dom'
+import { CSSTransition } from 'react-transition-group'
+import { Container, Navbar, Nav } from 'react-bootstrap'
+import Home from './pages/home'
+import About from './pages/about'
+import Contact from './pages/contact'
+import './styles.css'
+
+const routes = [
+  { path: '/', name: 'Home', Component: Home },
+  { path: '/about', name: 'About', Component: About },
+  { path: '/contact', name: 'Contact', Component: Contact },
+]
+
+function Example() {
+  return (
+    <Router>
+      <>
+        <Navbar bg="light">
+          <Nav className="mx-auto">
+            {routes.map(route => (
+              <Nav.Link
+                key={route.path}
+                as={NavLink}
+                to={route.path}
+                activeClassName="active"
+                exact
+              >
+                {route.name}
+              </Nav.Link>
+            ))}
+          </Nav>
+        </Navbar>
+        <Container className="container">
+          {routes.map(({ path, Component }) => (
+            <Route key={path} exact path={path}>
+              {({ match }) => (
+                <CSSTransition
+                  in={match != null}
+                  timeout={300}
+                  classNames="page"
+                  unmountOnExit
+                >
+                  <div className="page">
+                    <Component />
+                  </div>
+                </CSSTransition>
+              )}
+            </Route>
+          ))}
+        </Container>
+      </>
+    </Router>
+  )
+}
+
+const rootElement = document.getElementById('root')
+ReactDOM.render(<Example />, rootElement)
+```
