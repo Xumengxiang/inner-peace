@@ -52,6 +52,14 @@ module.exports = {
           ],
         },
       ],
+      "/articles/network": [
+        {
+          collapsable: false,
+          children: [
+            { title: "一篇就够了：HTTP 基础知识一网打尽", path: "/articles/network" },
+          ],
+        },
+      ],
     },
     sidebarDepth: 3,
   },

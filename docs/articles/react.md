@@ -106,7 +106,7 @@ export function toVNode(node: Node, domApi?: DOMAPI): VNode {
     for (i = 0, n = elmAttrs.length; i < n; i++) {
       name = elmAttrs[i].nodeName;
       if (name !== 'id' && name !== 'class') {
-        // 把非id和class的属性值放到attrs中 
+        // 把非id和class的属性值放到attrs中
         attrs[name] = elmAttrs[i].nodeValue;
       }
     }
@@ -125,7 +125,7 @@ export function toVNode(node: Node, domApi?: DOMAPI): VNode {
     text = api.getTextContent(node) as string;
     return vnode('!', {}, [], text, node as any);
   } else {
-    // 如果什么都不是就返回一个空的vnode 
+    // 如果什么都不是就返回一个空的vnode
     return vnode('', {}, [], undefined, node as any);
   }
 }
