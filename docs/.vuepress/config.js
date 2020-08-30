@@ -41,6 +41,7 @@ module.exports = {
       {
         text: "有趣的小项目",
         items: [{ text: "前端小报", link: "/articles/little-news" }],
+        items: [{ text: "用Github小绿点画个画", link: "/articles/green-wall" }],
       },
     ],
     sidebar: {
