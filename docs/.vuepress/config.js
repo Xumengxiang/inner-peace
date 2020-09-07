@@ -40,9 +40,11 @@ module.exports = {
       },
       {
         text: "有趣的小项目",
-        items: [{ text: "前端小报", link: "/articles/little-news" }],
-        items: [{ text: "用Github小绿点画个画", link: "/articles/green-wall" }],
-        items: [{ text: "实现一个前端请求拦截器", link: "/articles/intercept" }],
+        items: [
+          { text: "Chrome插件：前端小报", link: "/articles/little-news" },
+          { text: "VSCode插件：用Github小绿点画个画", link: "/articles/green-wall" },
+          { text: "实现一个前端请求拦截器", link: "/articles/intercept" }
+        ],
       },
     ],
     sidebar: {
