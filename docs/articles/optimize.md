@@ -112,11 +112,152 @@ server {
 
 ### 静态资源缓存
 
+有些静态资源更新频率低或者不更新，我们可以通过设置expires来配置缓存时间，以此来达到优化性能作用，那怎么配置呢？
+
+```nginx
+location ~ \.(gif|jpg|jpeg|png)$ {
+  root /var/www/html/
+  expires 7d;
+}
+```
+
 ### 负载均衡
+
+负载均衡器可以通过分配其他的服务器给用户，来增加的网站的稳定性和响应速度，而且负载均衡器有四种常用方式，这里要提的是响应时间来分配的模式，可以让多台服务器竞争，找出相应最快的并返回内容给用户，配置如下:
+
+```nginx
+upstream backserver {
+  server 192.168.0.1;
+  server 192.168.0.2;
+  server 192.168.0.3;
+  fair;
+}
+
+server {
+  listen 80;
+  server_name loacalhost;
+  location / {
+    proxy_pass http://backserver;
+  }
+}
+```
 
 ## Webpack
 
 ### 代码分割
+
+代码分割主要有以下三种方式：
+
+#### Entry Points
+
+配置多个入口
+
+```js
+const path = require('path');
+
+module.exports = {
+  entry: {
+    index: './src/index.js',
+    another: './src/another.js',
+  },
+  output: {
+    filename: '[name].bundle.js',
+    path: path.resolve(__dirname, 'dist'),
+  },
+}
+```
+
+直接设置`entry`来分隔代码有一些缺陷：
+
+* 如果两个`entry`中都引用了相同的`module`，那么最终生成的两个文件中都会包含相同的内容。
+* 不能根据代码中实际的代码逻辑来动态的分割代码。
+
+针对上面重复引用的问题，解决方案如下：
+
+* `dependOn` 选项
+
+```diff
+const path = require('path');
+
+module.exports = {
+  entry: {
+-   index: './src/index.js',
+-   another: './src/another.js',
++   index: { import: './src/index.js', dependOn: 'shared' },
++   another: { import: './src/another.js', dependOn: 'shared' },
++   shared: 'lodash',
+  },
+  output: {
+    filename: '[name].bundle.js',
+    path: path.resolve(__dirname, 'dist'),
+  },
+}
+```
+
+#### 使用`split-chunk-plugin`
+
+```diff
+const path = require('path');
+
+module.exports = {
+  entry: {
+    index: './src/index.js',
+    another: './src/another.js',
+  },
+  output: {
+    filename: '[name].bundle.js',
+    path: path.resolve(__dirname, 'dist'),
+  },
++ optimization: {
++   splitChunks: {
++     chunks: 'all',
++   },
++ },
+}
+```
+
+#### 动态引入
+
+使用动态引入语法，`require.ensuse（legacy）`、`import()`
+
+```diff
+const path = require('path');
+
+module.exports = {
+  entry: {
+    index: './src/index.js',
+-   another: './src/another.js',
+  },
+  output: {
+    filename: '[name].bundle.js',
++   chunkFilename: '[name].bundle.js',
+    publicPath: 'dist/',
+    path: path.resolve(__dirname, 'dist'),
+  },
+- optimization: {
+-   splitChunks: {
+-     chunks: 'all',
+-   },
+- },
+}
+```
+
+通过`import().then()`引入组件
+
+```js
+funtion getComponent() {
+  return import('lodash').then(({default: _ }) => {
+    const element = document.createElement('div');
+    element.innerHTML = _.join(['Hello', 'Webpack'],'');
+
+    return element;
+  }).catch(error => 'Error')
+}
+
+getComponent().then(component => {
+  document.body.appendChild(component);
+})
+```
 
 ### UglifyJs 压缩
 
