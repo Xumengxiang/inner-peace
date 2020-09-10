@@ -261,6 +261,44 @@ getComponent().then(component => {
 
 ### UglifyJs 压缩
 
+```js
+const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
+
+module.exports = {
+  optimization: {
+    minimizer: [
+      new UglifyJsPlugin({
+        // Uncomment lines below for cache invalidation correctly
+        // cache: true,
+        // cacheKeys(defaultCacheKeys) {
+        //   delete defaultCacheKeys['uglify-js'];
+        //
+        //   return Object.assign(
+        //     {},
+        //     defaultCacheKeys,
+        //     { 'uglify-js': require('uglify-js/package.json').version },
+        //   );
+        // },
+        minify(file, sourceMap) {
+          // https://github.com/mishoo/UglifyJS2#minify-options
+          const uglifyJsOptions = {
+            /* `uglify-js` package 的相关配置 */
+          };
+
+          if (sourceMap) {
+            uglifyJsOptions.sourceMap = {
+              content: sourceMap,
+            };
+          }
+
+          return require('terser').minify(file, uglifyJsOptions);
+        },
+      }),
+    ],
+  },
+};
+```
+
 ### CDN
 
 ### Tree Shaking
