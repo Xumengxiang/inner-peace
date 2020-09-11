@@ -284,13 +284,11 @@ module.exports = {
           const uglifyJsOptions = {
             /* `uglify-js` package 的相关配置 */
           };
-
           if (sourceMap) {
             uglifyJsOptions.sourceMap = {
               content: sourceMap,
             };
           }
-
           return require('terser').minify(file, uglifyJsOptions);
         },
       }),
