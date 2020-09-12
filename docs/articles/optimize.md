@@ -299,6 +299,8 @@ module.exports = {
 
 ### CDN
 
+CDN
+
 ### Tree Shaking
 
 ### GZIP
