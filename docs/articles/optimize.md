@@ -299,11 +299,81 @@ module.exports = {
 
 ### CDN
 
-CDN
+#### webpack.config.js
+
+```js
+module.exports = {
+  module: {
+    rules: [
+      { test: /\.jpg$/, loader: 'file-loader' },
+      { test: /\.png$/, loader: 'url-loader' },
+    ],
+  },
+  output: {
+    publicPath: 'http://cdn.example.com/[hash]/',
+  },
+};
+```
+
+#### file.html
+
+```html
+<img src="image.jpg" data-src="image2x.png" />
+```
+
+#### index.js
+
+```js
+require('html-loader!./file.html');
+
+// => '<img src="http://cdn.example.com/49eba9f/a992ca.jpg" data-src="image2x.png">'
+```
+
+```js
+require('html-loader?{"attributes":{"list":[{"tag":"img","attribute":"data-src","type":"src"}]}}!./file.html');
+
+// => '<img src="image.jpg" data-src="data:image/png;base64,..." >'
+```
+
+```js
+require('html-loader?{"attributes":{"list":[{"tag":"img","attribute":"src","type":"src"},{"tag":"img","attribute":"data-src","type":"src"}]}}!./file.html');
+
+// => '<img src="http://cdn.example.com/49eba9f/a992ca.jpg" data-src="data:image/png;base64,..." >'
+```
+
+```js
+require('html-loader?-attributes!./file.html');
+
+// => '<img src="image.jpg"  data-src="image2x.png" >'
+```
 
 ### Tree Shaking
 
+```diff
+const path = require('path');
+
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, 'dist'),
+  },
++ mode: 'development',
++ optimization: {
++   usedExports: true,
++ },
+};
+```
+
 ### GZIP
+
+```js
+const CompressionPlugin = require('compression-webpack-plugin');
+
+module.exports = {
+  plugins: [new CompressionPlugin()],
+};
+```
 
 ### webpack-bundle-analyze
 
