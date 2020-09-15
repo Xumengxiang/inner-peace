@@ -43,7 +43,10 @@ module.exports = {
         items: [
           { text: "Chrome插件：前端小报", link: "/articles/little-news" },
           { text: "VSCode插件：用Github小绿点画个画", link: "/articles/green-wall" },
-          { text: "实现一个前端请求拦截器", link: "/articles/intercept" }
+          { text: "实现一个前端请求拦截器", link: "/articles/intercept" },
+          { text: "一套配置约束前端团队的代码规范", link: "/articles/code-rule" },
+          { text: "撸一个React项目脚手架", link: "/articles/cli" },
+          { text: "撸一个React项目组件库", link: "/articles/component" }
         ],
       },
     ],
