@@ -23,6 +23,7 @@ module.exports = {
           { text: "可视化（D3.js）", link: "/articles/visualization" },
           { text: "微前端", link: "/articles/micro-front-end" },
           { text: "多端（Taro）", link: "/articles/multi-terminal" },
+          { text: "Webpack 5.0 新特性尝鲜", link: "/articles/webpack-v5" },
         ],
       },
       {
@@ -46,7 +47,8 @@ module.exports = {
           { text: "实现一个前端请求拦截器", link: "/articles/intercept" },
           { text: "一套配置约束前端团队的代码规范", link: "/articles/code-rule" },
           { text: "撸一个React项目脚手架", link: "/articles/cli" },
-          { text: "撸一个React项目组件库", link: "/articles/component" }
+          { text: "撸一个React项目组件库", link: "/articles/component" },
+          { text: "撸一个LightHouse满分项目模板", link: "/articles/component" },
         ],
       },
     ],
@@ -72,6 +74,14 @@ module.exports = {
           collapsable: false,
           children: [
             { title: "一篇就够了：前端性能优化", path: "/articles/optimize" },
+          ],
+        },
+      ],
+      "/articles/webpack-v5": [
+        {
+          collapsable: false,
+          children: [
+            { title: "Webapck 5.0 新特性尝鲜", path: "/articles/webpack-v5" },
           ],
         },
       ],
