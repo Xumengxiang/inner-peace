@@ -81,7 +81,7 @@ module.exports = {
         {
           collapsable: false,
           children: [
-            { title: "Webapck 5.0 新特性尝鲜", path: "/articles/webpack-v5" },
+            { title: "一篇就够了：Webapck 5.0 新特性尝鲜", path: "/articles/webpack-v5" },
           ],
         },
       ],
