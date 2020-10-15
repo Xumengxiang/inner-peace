@@ -559,4 +559,102 @@ body {
 
 ### 函数
 
-### 使用JS表达式
+#### 逻辑控制
+
+格式：
+
+* statement when(conditons)
+* prop: if((conditions),value);
+
+例1：在less中使用一个带参类名展示上下左右四个方向的纯CSS三角形
+
+```less
+.base(){
+  width: 0;
+  height: 0;
+}
+@normal: 20px solid transparent;
+@anger: 20px solid #f00;
+.triangle(@val) when(@val=left){
+  .base();
+  border-left: none;
+  border-right: @anger;
+  border-top: @normal;
+  border-bottom: @normal;
+}
+.triangle(@val) when(@val=right){
+  .base();
+  border-right: none;
+  border-left: @anger;
+  border-top: @normal;
+  border-bottom: @normal;
+}
+.triangle(@val) when(@val=top){
+  .base();
+  border-left: @normal;
+  border-right: @normal;
+  border-top: none;
+  border-bottom: @anger;
+}
+.triangle(@val) when(@val=bottom){
+  .base();
+  border-left: @normal;
+  border-right: @normal;
+  border-top: @anger;
+  border-bottom: none;
+}
+.div1{
+  .triangle(left);
+}
+.div2{
+  .triangle(right);
+}
+.div3{
+  .triangle(top);
+}
+.div4{
+  .triangle(bottom);
+}
+```
+
+例2：
+
+```less
+background: if( (true), #f00 );
+```
+
+#### 循环
+
+例：将8个`<td>`的背景依次更换为bg_1.png、bg_2.png、…、bg_8.png
+
+```less
+table td{
+  width: 200px;
+  height: 200px;
+  .loop(@i) when(@i<9){
+    &:nth-child(@{i}){
+      background: url(~"../images/partner_@{i}.png") no-repeat;
+    }
+    .loop(@i+1);
+  }
+  .loop(1);
+}
+```
+
+#### 列表
+
+```less
+@backgroundlist: apple, pear, coconut, orange;
+```
+
+#### 函数库
+
+```less
+image-size(“bg.png”) //获取图片的Width和Height
+image-width() //获取图片的Width和Height
+image-height() //获取图片的Width和Height
+convert(9s, ms) //转换9秒为毫秒
+convert(14cm, mm) //转换14厘米为毫米
+```
+
+更多函数参考官方函数库，包括混合函数、数学函数、字符串函数、列表函数等等
