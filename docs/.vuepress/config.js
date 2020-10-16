@@ -16,7 +16,7 @@ module.exports = {
           { text: "一篇就够了：Http基础知识一网打尽", link: "/articles/network" },
           { text: "一篇就够了：前端性能优化", link: "/articles/optimize" },
           { text: "必知必会：CSS", link: "/articles/css" },
-          { text: "必知必会：JavaScript与ES6", link: "/articles/css" },
+          { text: "必知必会：JavaScript与ES6", link: "/articles/es6" },
           { text: "必知必会：Node.js", link: "/articles/node" },
           { text: "必知必会：设计模式", link: "/articles/design-patterns" },
           { text: "必知必会：Web安全", link: "/articles/security" },
@@ -92,6 +92,14 @@ module.exports = {
           collapsable: false,
           children: [
             { title: "必知必会：CSS", path: "/articles/css" },
+          ],
+        },
+      ],
+      "/articles/es6": [
+        {
+          collapsable: false,
+          children: [
+            { title: "必知必会：JavaScript与ES6", path: "/articles/es6" },
           ],
         },
       ],
