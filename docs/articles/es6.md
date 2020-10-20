@@ -1,6 +1,6 @@
 # 必知必会：JavaScript
 
-![必知必会：JavaScript](/JavaScript.png)
+![必知必会：JavaScript](/javascript.png)
 
 ## this
 
